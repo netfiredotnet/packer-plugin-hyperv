@@ -32,8 +32,8 @@ type Driver interface {
 	// this will return an error.
 	Verify() error
 
-	// Finds the MAC address of the NIC nic0
-	Mac(string) (string, error)
+	// Finds the MAC address of the NIC at specified index
+	Mac(string, uint) (string, error)
 
 	// Finds the IP address of a VM connected that uses DHCP by its MAC address
 	IpAddress(string) (string, error)
@@ -53,8 +53,11 @@ type Driver interface {
 	//Set the vlan to use for switch
 	SetNetworkAdapterVlanId(string, string) error
 
+	// Create VM network adapters
+	AddVMNetworkAdapters(string, uint) error
+
 	//Set the vlan to use for machine
-	SetVirtualMachineVlanId(string, string) error
+	SetVirtualMachineVlanId(string, string, string) error
 
 	SetVmNetworkAdapterMacAddress(string, string) error
 
@@ -67,7 +70,7 @@ type Driver interface {
 
 	GetVirtualMachineSwitchName(string) (string, error)
 
-	ConnectVirtualMachineNetworkAdapterToSwitch(string, string) error
+	ConnectVirtualMachineNetworkAdapterToSwitch(string, uint, string) error
 
 	CreateVirtualSwitch(string, string) (bool, error)
 

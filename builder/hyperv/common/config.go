@@ -8,11 +8,11 @@ import (
 	"os"
 	"strings"
 
-	powershell "github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common/powershell"
-	"github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common/powershell/hyperv"
 	"github.com/hashicorp/packer-plugin-sdk/common"
 	"github.com/hashicorp/packer-plugin-sdk/multistep/commonsteps"
 	"github.com/hashicorp/packer-plugin-sdk/template/interpolate"
+	powershell "github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common/powershell"
+	"github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common/powershell/hyperv"
 )
 
 const (
@@ -74,8 +74,10 @@ type CommonConfig struct {
 	// The name of the switch to connect the virtual
 	// machine to. By default, leaving this value unset will cause Packer to
 	// try and determine the switch to use by looking for an external switch
-	// that is up and running.
-	SwitchName string `mapstructure:"switch_name" required:"false"`
+	// that is up and running. Accepts multiple values - a network interface
+	// will be created for each switch listed and interface will be connected to named switch.
+	// Multiple values are useful when used together with multiple values for vlan_id and setting a primary_adapter_index.
+	SwitchName []string `mapstructure:"switch_name" required:"false"`
 	// This is the VLAN of the virtual switch's
 	// network card. By default none is set. If none is set then a VLAN is not
 	// set on the switch's network card. If this value is set it should match
@@ -86,9 +88,15 @@ type CommonConfig struct {
 	// no delimiters, for example "0000deadbeef".
 	MacAddress string `mapstructure:"mac_address" required:"false"`
 	// This is the VLAN of the virtual machine's network
-	// card for the new virtual machine. By default none is set. If none is set
+	// card(s) for the new virtual machine. By default none is set. If none is set
 	// then VLANs are not set on the virtual machine's network card.
-	VlanId string `mapstructure:"vlan_id" required:"false"`
+	// Accepts multiple vlan id's - a network interface will be created for each VLAN id listed here.
+	// Multiple values are useful when used together with multiple values for switch_name and setting a primary_adapter_index.
+	VlanId []string `mapstructure:"vlan_id" required:"false"`
+	// This is the default adapter used by most functionality in this builder.
+	// Additional adapters may be created by setting > 1 value in switch_name or vlan_id, or any value > 0 for this.
+	// By default, the first adapter will be used.
+	PrimaryAdapterIdx uint `mapstructure:"primary_adapter_index" required:"false"`
 	// The number of CPUs the virtual machine should use. If
 	// this isn't specified, the default is 1 CPU.
 	Cpu uint `mapstructure:"cpus" required:"false"`
@@ -189,8 +197,8 @@ func (c *CommonConfig) Prepare(ctx *interpolate.Context, pc *common.PackerConfig
 		log.Println(fmt.Sprintf("%s: %v", "VMName", c.VMName))
 	}
 
-	if c.SwitchName == "" {
-		c.SwitchName = c.detectSwitchName(pc.PackerBuildName)
+	if len(c.SwitchName) == 0 {
+		c.SwitchName = append(c.SwitchName, c.detectSwitchName(pc.PackerBuildName))
 		log.Println(fmt.Sprintf("Using switch %s", c.SwitchName))
 	}
 
@@ -326,9 +334,9 @@ func (c *CommonConfig) Prepare(ctx *interpolate.Context, pc *common.PackerConfig
 	}
 
 	if c.SwitchVlanId != "" {
-		if c.SwitchVlanId != c.VlanId {
+		if c.SwitchVlanId != c.VlanId[0] {
 			warning := fmt.Sprintf("Switch network adaptor vlan should match virtual machine network adaptor " +
-				"vlan. The switch will not be able to see traffic from the VM.")
+				"vlan (in position 0). The switch will not be able to see traffic from the VM.")
 			warns = Appendwarns(warns, warning)
 		}
 	}

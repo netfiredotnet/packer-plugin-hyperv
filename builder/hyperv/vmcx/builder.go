@@ -7,12 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2/hcldec"
-	hypervcommon "github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common"
-	powershell "github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common/powershell"
 	"github.com/hashicorp/packer-plugin-sdk/bootcommand"
 	"github.com/hashicorp/packer-plugin-sdk/common"
 	"github.com/hashicorp/packer-plugin-sdk/communicator"
@@ -22,6 +21,8 @@ import (
 	"github.com/hashicorp/packer-plugin-sdk/shutdowncommand"
 	"github.com/hashicorp/packer-plugin-sdk/template/config"
 	"github.com/hashicorp/packer-plugin-sdk/template/interpolate"
+	hypervcommon "github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common"
+	powershell "github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common/powershell"
 )
 
 const (
@@ -105,6 +106,10 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, []string, error) {
 	// Accumulate any errors and warnings
 	var errs *packersdk.MultiError
 	warnings := make([]string, 0)
+
+	if b.config.PrimaryAdapterIdx+1 > uint(len(b.config.SwitchName)) {
+		errs = packersdk.MultiErrorAppend(errs, fmt.Errorf("primary_adapter_index must address an item in (zero-based) switch_name (%d items specified)", len(b.config.SwitchName)))
+	}
 
 	if b.config.RawSingleISOUrl != "" || len(b.config.ISOUrls) > 0 {
 		isoWarnings, isoErrs := b.config.ISOConfig.Prepare(&b.config.ctx)
@@ -236,6 +241,11 @@ func (b *Builder) Run(ctx context.Context, ui packersdk.Ui, hook packersdk.Hook)
 	state.Put("hook", hook)
 	state.Put("ui", ui)
 
+	switchName := ""
+	if len(b.config.SwitchName) > 0 {
+		switchName = b.config.SwitchName[b.config.PrimaryAdapterIdx]
+	}
+
 	steps := []multistep.Step{
 		&hypervcommon.StepCreateBuildDir{
 			TempPath: b.config.TempPath,
@@ -259,7 +269,7 @@ func (b *Builder) Run(ctx context.Context, ui packersdk.Ui, hook packersdk.Hook)
 		},
 		commonsteps.HTTPServerFromHTTPConfig(&b.config.HTTPConfig),
 		&hypervcommon.StepCreateSwitch{
-			SwitchName: b.config.SwitchName,
+			SwitchName: switchName,
 		},
 		&hypervcommon.StepCloneVM{
 			CloneFromVMCXPath:              b.config.CloneFromVMCXPath,
@@ -267,7 +277,7 @@ func (b *Builder) Run(ctx context.Context, ui packersdk.Ui, hook packersdk.Hook)
 			CloneFromSnapshotName:          b.config.CloneFromSnapshotName,
 			CloneAllSnapshots:              b.config.CloneAllSnapshots,
 			VMName:                         b.config.VMName,
-			SwitchName:                     b.config.SwitchName,
+			SwitchName:                     switchName,
 			CompareCopy:                    b.config.CompareCopy,
 			RamSize:                        b.config.RamSize,
 			Cpu:                            b.config.Cpu,
@@ -307,6 +317,12 @@ func (b *Builder) Run(ctx context.Context, ui packersdk.Ui, hook packersdk.Hook)
 			Generation: b.config.Generation,
 		},
 
+		&hypervcommon.StepConfigureAdapters{
+			PrimaryAdapterIdx: b.config.PrimaryAdapterIdx,
+			SwitchName:        b.config.SwitchName,
+			MaxAdapters:       uint(math.Max(float64(len(b.config.SwitchName)), float64(len(b.config.VlanId)))),
+		},
+
 		&hypervcommon.StepConfigureVlan{
 			VlanId:       b.config.VlanId,
 			SwitchVlanId: b.config.SwitchVlanId,
@@ -322,13 +338,13 @@ func (b *Builder) Run(ctx context.Context, ui packersdk.Ui, hook packersdk.Hook)
 
 		&hypervcommon.StepRun{
 			Headless:   b.config.Headless,
-			SwitchName: b.config.SwitchName,
+			SwitchName: switchName,
 		},
 
 		&hypervcommon.StepTypeBootCommand{
 			BootCommand:   b.config.FlatBootCommand(),
 			BootWait:      b.config.BootWait,
-			SwitchName:    b.config.SwitchName,
+			SwitchName:    switchName,
 			Ctx:           b.config.ctx,
 			GroupInterval: b.config.BootConfig.BootGroupInterval,
 		},
@@ -336,7 +352,7 @@ func (b *Builder) Run(ctx context.Context, ui packersdk.Ui, hook packersdk.Hook)
 		// configure the communicator ssh, winrm
 		&communicator.StepConnect{
 			Config:    &b.config.SSHConfig.Comm,
-			Host:      hypervcommon.CommHost(b.config.SSHConfig.Comm.Host()),
+			Host:      hypervcommon.CommHost(b.config.SSHConfig.Comm.Host(), b.config.PrimaryAdapterIdx),
 			SSHConfig: b.config.SSHConfig.Comm.SSHConfigFunc(),
 		},
 

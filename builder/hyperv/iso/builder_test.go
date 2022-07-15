@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"testing"
 
-	hypervcommon "github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common"
 	"github.com/hashicorp/packer-plugin-sdk/common"
 	"github.com/hashicorp/packer-plugin-sdk/multistep"
 	packersdk "github.com/hashicorp/packer-plugin-sdk/packer"
+	hypervcommon "github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common"
 )
 
 func testConfig() map[string]interface{} {
@@ -617,9 +617,14 @@ func TestUserVariablesInBootCommand(t *testing.T) {
 	state.Put("ui", ui)
 	state.Put("vmName", "packer-foo")
 
+	switchName := ""
+	if len(b.config.SwitchName) > 0 {
+		switchName = b.config.SwitchName[b.config.PrimaryAdapterIdx]
+	}
+
 	step := &hypervcommon.StepTypeBootCommand{
 		BootCommand: b.config.FlatBootCommand(),
-		SwitchName:  b.config.SwitchName,
+		SwitchName:  switchName,
 		Ctx:         b.config.ctx,
 	}
 

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common/powershell"
-	"github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common/powershell/hyperv"
+	"github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common/powershell"
+	"github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common/powershell/hyperv"
 )
 
 type HypervPS4Driver struct {
@@ -73,8 +73,8 @@ func (d *HypervPS4Driver) Verify() error {
 }
 
 // Get mac address for VM.
-func (d *HypervPS4Driver) Mac(vmName string) (string, error) {
-	res, err := hyperv.Mac(vmName)
+func (d *HypervPS4Driver) Mac(vmName string, adapterIdx uint) (string, error) {
+	res, err := hyperv.Mac(vmName, adapterIdx)
 
 	if err != nil {
 		return res, err
@@ -142,9 +142,14 @@ func (d *HypervPS4Driver) SetNetworkAdapterVlanId(switchName string, vlanId stri
 	return hyperv.SetNetworkAdapterVlanId(switchName, vlanId)
 }
 
+// Create VM network adapters and assign switches to them
+func (d *HypervPS4Driver) AddVMNetworkAdapters(vmName string, totalAdapters uint) error {
+	return hyperv.AddVMNetworkAdapters(vmName, totalAdapters)
+}
+
 //Set the vlan to use for machine
-func (d *HypervPS4Driver) SetVirtualMachineVlanId(vmName string, vlanId string) error {
-	return hyperv.SetVirtualMachineVlanId(vmName, vlanId)
+func (d *HypervPS4Driver) SetVirtualMachineVlanId(vmName string, adapterIndex string, vlanId string) error {
+	return hyperv.SetVirtualMachineVlanId(vmName, adapterIndex, vlanId)
 }
 
 func (d *HypervPS4Driver) SetVmNetworkAdapterMacAddress(vmName string, mac string) error {
@@ -168,8 +173,8 @@ func (d *HypervPS4Driver) GetVirtualMachineSwitchName(vmName string) (string, er
 	return hyperv.GetVirtualMachineSwitchName(vmName)
 }
 
-func (d *HypervPS4Driver) ConnectVirtualMachineNetworkAdapterToSwitch(vmName string, switchName string) error {
-	return hyperv.ConnectVirtualMachineNetworkAdapterToSwitch(vmName, switchName)
+func (d *HypervPS4Driver) ConnectVirtualMachineNetworkAdapterToSwitch(vmName string, adapterIdx uint, switchName string) error {
+	return hyperv.ConnectVirtualMachineNetworkAdapterToSwitch(vmName, adapterIdx, switchName)
 }
 
 func (d *HypervPS4Driver) DeleteVirtualSwitch(switchName string) error {

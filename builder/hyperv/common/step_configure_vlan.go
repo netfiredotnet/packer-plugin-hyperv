@@ -3,13 +3,14 @@ package common
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/hashicorp/packer-plugin-sdk/multistep"
 	packersdk "github.com/hashicorp/packer-plugin-sdk/packer"
 )
 
 type StepConfigureVlan struct {
-	VlanId       string
+	VlanId       []string
 	SwitchVlanId string
 }
 
@@ -26,7 +27,7 @@ func (s *StepConfigureVlan) Run(ctx context.Context, state multistep.StateBag) m
 	ui.Say("Configuring vlan...")
 
 	if switchVlanId != "" {
-		err := driver.SetNetworkAdapterVlanId(switchName, vlanId)
+		err := driver.SetNetworkAdapterVlanId(switchName, vlanId[0])
 		if err != nil {
 			err := fmt.Errorf(errorMsg, err)
 			state.Put("error", err)
@@ -35,13 +36,15 @@ func (s *StepConfigureVlan) Run(ctx context.Context, state multistep.StateBag) m
 		}
 	}
 
-	if vlanId != "" {
-		err := driver.SetVirtualMachineVlanId(vmName, vlanId)
-		if err != nil {
-			err := fmt.Errorf(errorMsg, err)
-			state.Put("error", err)
-			ui.Error(err.Error())
-			return multistep.ActionHalt
+	if len(vlanId) > 0 {
+		for i, v := range vlanId {
+			err := driver.SetVirtualMachineVlanId(vmName, strconv.Itoa(i), v)
+			if err != nil {
+				err := fmt.Errorf(errorMsg, err)
+				state.Put("error", err)
+				ui.Error(err.Error())
+				return multistep.ActionHalt
+			}
 		}
 	}
 

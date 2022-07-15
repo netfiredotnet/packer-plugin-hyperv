@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/common/powershell"
+	"github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/common/powershell"
 )
 
 type scriptOptions struct {
@@ -1100,14 +1100,38 @@ Hyper-V\Set-VMNetworkAdapterVlan -ManagementOS -VMNetworkAdapterName $networkAda
 	return err
 }
 
-func SetVirtualMachineVlanId(vmName string, vlanId string) error {
+func AddVMNetworkAdapters(vmName string, totalAdapters uint) error {
 
 	var script = `
-param([string]$vmName,[string]$vlanId)
-Hyper-V\Set-VMNetworkAdapterVlan -VMName $vmName -Access -VlanId $vlanId
+param([string]$vmName,[string]$totalAdapters)
+[int]$T = $totalAdapters
+$AdapterCount = (Hyper-V\Get-VMNetworkAdapter -VMName $vmName | Measure-Object).Count
+$Shortfall = $totalAdapters - $AdapterCount
+if ($Shortfall -gt 0) {
+	for ($i=0; $i -lt $Shortfall; $i++) {
+		Hyper-V\Add-VMNetworkAdapter -VMName $vmName
+	}
+}
+`
+
+	var ps powershell.PowerShellCmd
+	err := ps.Run(script, vmName, strconv.Itoa(int(totalAdapters)))
+	return err
+}
+
+func SetVirtualMachineVlanId(vmName string, adapterIndex string, vlanId string) error {
+
+	var script = `
+param([string]$vmName,[string]$adapterIndex,[string]$vlanId)
+[int]$i = $adapterIndex
+$Adapters = Hyper-V\Get-VMNetworkAdapter -VMName $vmName
+if (-not $Adapters[$adapterIndex]) {
+	throw "Adapter at index $adapterIndex not found"
+}
+$Adapters[$adapterIndex] | Hyper-V\Set-VMNetworkAdapterVlan -Access -VlanId $vlanId
 `
 	var ps powershell.PowerShellCmd
-	err := ps.Run(script, vmName, vlanId)
+	err := ps.Run(script, vmName, adapterIndex, vlanId)
 	return err
 }
 
@@ -1202,15 +1226,20 @@ param([string]$vmName)
 	return strings.TrimSpace(cmdOut), nil
 }
 
-func ConnectVirtualMachineNetworkAdapterToSwitch(vmName string, switchName string) error {
+func ConnectVirtualMachineNetworkAdapterToSwitch(vmName string, adapterIdx uint, switchName string) error {
 
 	var script = `
-param([string]$vmName,[string]$switchName)
-Hyper-V\Get-VMNetworkAdapter -VMName $vmName | Hyper-V\Connect-VMNetworkAdapter -SwitchName $switchName
+param([string]$vmName,[string]$adapterIdx,[string]$switchName)
+[int]$Idx = $adapterIdx
+$Adapters = Hyper-V\Get-VMNetworkAdapter -VMName $vmName
+if (-not $Adapters[$Idx]) {
+	throw "Adapter at index $Idx does not exist"
+}
+$Adapters[$Idx] | Hyper-V\Connect-VMNetworkAdapter -SwitchName $switchName
 `
 
 	var ps powershell.PowerShellCmd
-	err := ps.Run(script, vmName, switchName)
+	err := ps.Run(script, vmName, strconv.Itoa(int(adapterIdx)), switchName)
 	return err
 }
 
@@ -1298,7 +1327,7 @@ $vm.Uptime.TotalSeconds
 	return uptime, err
 }
 
-func Mac(vmName string) (string, error) {
+func Mac(vmName string, adapterIdx uint) (string, error) {
 	var script = `
 param([string]$vmName, [int]$adapterIndex)
 try {
@@ -1314,7 +1343,7 @@ $mac
 `
 
 	var ps powershell.PowerShellCmd
-	cmdOut, err := ps.Output(script, vmName, "0")
+	cmdOut, err := ps.Output(script, vmName, strconv.Itoa(int(adapterIdx)))
 
 	return cmdOut, err
 }

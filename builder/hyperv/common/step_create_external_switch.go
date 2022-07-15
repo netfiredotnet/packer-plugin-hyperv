@@ -92,7 +92,7 @@ func (s *StepCreateExternalSwitch) Cleanup(state multistep.StateBag) {
 		return
 	}
 
-	err := driver.ConnectVirtualMachineNetworkAdapterToSwitch(vmName, s.oldSwitchName)
+	err := driver.ConnectVirtualMachineNetworkAdapterToSwitch(vmName, 0, s.oldSwitchName)
 	if err != nil {
 		ui.Error(fmt.Sprintf(errMsg, err))
 		return

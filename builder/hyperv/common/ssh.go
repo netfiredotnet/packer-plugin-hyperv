@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/packer-plugin-sdk/multistep"
 )
 
-func CommHost(host string) func(multistep.StateBag) (string, error) {
+func CommHost(host string, adapterIdx uint) func(multistep.StateBag) (string, error) {
 	return func(state multistep.StateBag) (string, error) {
 
 		// Skip IP auto detection if the configuration has an ssh host configured.
@@ -18,7 +18,7 @@ func CommHost(host string) func(multistep.StateBag) (string, error) {
 		vmName := state.Get("vmName").(string)
 		driver := state.Get("driver").(Driver)
 
-		mac, err := driver.Mac(vmName)
+		mac, err := driver.Mac(vmName, adapterIdx)
 		if err != nil {
 			return "", err
 		}

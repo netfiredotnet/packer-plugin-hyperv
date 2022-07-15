@@ -32,10 +32,12 @@
   without the file extension. By default this is "packer-BUILDNAME",
   where "BUILDNAME" is the name of the build.
 
-- `switch_name` (string) - The name of the switch to connect the virtual
+- `switch_name` ([]string) - The name of the switch to connect the virtual
   machine to. By default, leaving this value unset will cause Packer to
   try and determine the switch to use by looking for an external switch
-  that is up and running.
+  that is up and running. Accepts multiple values - a network interface
+  will be created for each switch listed and interface will be connected to named switch.
+  Multiple values are useful when used together with multiple values for vlan_id and setting a primary_adapter_index.
 
 - `switch_vlan_id` (string) - This is the VLAN of the virtual switch's
   network card. By default none is set. If none is set then a VLAN is not
@@ -46,9 +48,15 @@
   the default virtual network card. The MAC address must be a string with
   no delimiters, for example "0000deadbeef".
 
-- `vlan_id` (string) - This is the VLAN of the virtual machine's network
-  card for the new virtual machine. By default none is set. If none is set
+- `vlan_id` ([]string) - This is the VLAN of the virtual machine's network
+  card(s) for the new virtual machine. By default none is set. If none is set
   then VLANs are not set on the virtual machine's network card.
+  Accepts multiple vlan id's - a network interface will be created for each VLAN id listed here.
+  Multiple values are useful when used together with multiple values for switch_name and setting a primary_adapter_index.
+
+- `primary_adapter_index` (uint) - This is the default adapter used by most functionality in this builder.
+  Additional adapters may be created by setting > 1 value in switch_name or vlan_id, or any value > 0 for this.
+  By default, the first adapter will be used.
 
 - `cpus` (uint) - The number of CPUs the virtual machine should use. If
   this isn't specified, the default is 1 CPU.

@@ -6,9 +6,9 @@ import (
 
 	"github.com/hashicorp/packer-plugin-sdk/plugin"
 
-	"github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/iso"
-	"github.com/hashicorp/packer-plugin-hyperv/builder/hyperv/vmcx"
-	"github.com/hashicorp/packer-plugin-hyperv/version"
+	"github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/iso"
+	"github.com/netfiredotnet/packer-plugin-hyperv/builder/hyperv/vmcx"
+	"github.com/netfiredotnet/packer-plugin-hyperv/version"
 )
 
 func main() {

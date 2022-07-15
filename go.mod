@@ -1,4 +1,4 @@
-module github.com/hashicorp/packer-plugin-hyperv
+module github.com/netfiredotnet/packer-plugin-hyperv
 
 go 1.17
 
